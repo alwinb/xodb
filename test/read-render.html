@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Reader and Render</title>
+</head>
+<body>
+
+<div id=dropzone></div>
+<script type=module>
+
+import { parsePage, pens } from '../lib/page.js'
+const log = console.log.bind (console)
+
+// Page Renderer / canvas
+// ======================
+
+class Renderer {
+
+  constructor ({ width = 1404 } = { }) {
+    this.elem = document.createElement ('canvas')
+    this.elem.width = width, 
+    this.elem.height = 4/3 * width
+  }
+ 
+  clear () {
+    this.elem.width = this.elem.width // yeah...
+  }
+
+  render (page) {
+    const canvas = this.elem
+    const scale = canvas.width/1402 // rm2 size is 1404/1872 points
+    const ctx = canvas.getContext ('2d')
+    ctx.scale (scale, scale)
+    ctx.strokeStyle = 'black'
+    ctx.lineJoin = ctx.lineCap = 'round'
+
+    for (const layer of page.layers) for (const line of layer) {
+
+      if (line.pen === pens.eraser_area) {
+        ctx.strokeStyle = 'none'
+        ctx.fillStyle = 'white' // '#f002'
+        ctx.beginPath ()
+        for (const [x, y, sp, dir, width] of line.points)
+          ctx.lineTo (x, y)
+        ctx.fill ()
+      }
+
+      else if (line.pen === pens.fineliner) {
+        const [x, y, sp, dir, width] = line.points [0]
+        ctx.fillStyle = 'none'
+        ctx.strokeStyle = ['black', '#bcbcbc', 'white'] [line.color]
+        ctx.lineWidth = width
+        ctx.lineCap = ctx.lineJoin = 'round'
+        ctx.beginPath ()
+        for (const [x, y] of line.points) ctx.lineTo (x, y)
+        ctx.stroke ()
+      }
+
+      else if (line.pen === pens.highlighter) {
+        const [x, y, sp, dir, width] = line.points [0]
+        ctx.fillStyle = 'none'
+        ctx.strokeStyle = '#00000033'
+        ctx.lineCap = 'butt'
+        ctx.lineJoin = 'bevel'
+        // ctx.miterLimit = 2
+        ctx.lineWidth = width
+        ctx.beginPath ()
+        for (const [x, y] of line.points) ctx.lineTo (x, y)
+        ctx.stroke ()
+      }
+
+      else if (line.pen === pens.calligraphy) {
+        const [x, y, sp, dir, width] = line.points [0]
+        ctx.fillStyle = 'none'
+        ctx.strokeStyle = ['black', '#bcbcbc', 'white'] [line.color]
+        ctx.lineWidth = width
+        ctx.lineCap = ctx.lineJoin = 'round'
+        ctx.beginPath ()
+        ctx.moveTo (x, y)
+        for (const [x, y, _, __, w] of line.points) {
+          ctx.lineTo (x, y)
+          ctx.stroke ()
+          ctx.beginPath ()
+          ctx.moveTo (x, y)
+          ctx.lineWidth = w
+        }
+      }
+  
+      else {
+        // TODO Other brush types...
+        const [x, y, sp, dir, width] = line.points [0]
+        ctx.fillStyle = 'none'
+        ctx.strokeStyle = line.pen === pens.eraser ? 'white'
+          : ['black', '#bcbcbc', 'white'] [line.color]
+        ctx.lineWidth = width
+        ctx.lineCap = ctx.lineJoin = 'round'
+        ctx.beginPath ()
+        ctx.moveTo (x, y)
+        for (const [x, y, _, __, w] of line.points) {
+          ctx.lineTo (x, y)
+          ctx.stroke ()
+          ctx.beginPath ()
+          ctx.moveTo (x, y)
+          ctx.lineWidth = w
+        }
+      }
+
+    }
+    return this
+  }
+
+}
+
+// Test
+// ====
+
+const view = new Renderer ({ width:1000 })
+document.body.append (view.elem)
+
+function load (url, type, cb) {
+  const r = new XMLHttpRequest ()
+  r.open ('get', url)
+  r.responseType = type
+  r.send ()
+  r.onload = () => cb (r.response)
+}
+
+function test (buffer) {
+  const page = parsePage (buffer)
+  log (page)
+  view.clear ()
+  view.render (page)
+}
+
+var sample = './data/remarkable.rm'
+load (sample, 'arraybuffer', test)
+
+// Dropzone / for render
+
+const dropzone =
+  document.getElementById ('dropzone')
+
+const handlers = {
+
+  drop (evt) {
+    evt.preventDefault ()
+    let rmfile = null
+    if (evt.dataTransfer)
+    for (const file of evt.dataTransfer.files) {
+      console.log (file, file.name)
+      if (/^.+[.]rm$/i.test (file.name)) {
+        // TODO stream-render it instead
+        file.arrayBuffer () .then (test)
+        dropzone.style.background = 'none'
+        return
+      }
+    }
+    dropzone.style.background = 'none'
+  },
+
+  dragover (evt) {
+    dropzone.style.background = '#ccc3'
+    evt.preventDefault ()
+  },
+
+  dragleave () {
+    dropzone.style.background = 'none'
+  },
+
+  dragend (evt) {
+    dropzone.style.background = 'none'
+    evt.preventDefault ()
+  },
+
+}
+
+for (const k in handlers) {
+  dropzone.addEventListener (k, handlers[k])
+}
+
+</script>
+<style>
+  #dropzone {
+    position:fixed;
+    top:0;left:0;
+    width:100vw;
+    height:100vh;
+    border:none;
+    background:none;
+  }
+  canvas {
+    border:1px solid #ccc;
+  }
+</style>
+</body>
+</html>

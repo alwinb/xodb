@@ -1,0 +1,21 @@
+
+# TextMate Editor Configuration
+
+excludeInBrowser = "{node_modules,}"
+excludeInFolderSearch = "{node_modules,private,test/data,test/out}"
+excludeInFileChooser = "{node_modules,private,test/data,test/out}"
+
+[lib/writer.js]
+TM_RUN_TARGET = "../test/notebook.test.js"
+
+[lib/parser.js]
+TM_RUN_TARGET = "../test/parser.test.js"
+
+[lib/page.js]
+TM_RUN_TARGET = "../test/page.test.js"
+
+[lib/writer.new.js]
+TM_RUN_TARGET = "../test/writer.test.js"
+
+[lib/xochitldb.js]
+TM_RUN_TARGET = "../test/db.test.js"
